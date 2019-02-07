@@ -1,0 +1,130 @@
+package ca.mcgill.ecse211.lab1;
+
+import lejos.hardware.motor.EV3LargeRegulatedMotor;
+
+/**
+ * Uses a formula constant to maintain a stable distance  
+ * @author Kamal Malik and Julianna Tchebotareva
+ *
+ */
+public class PController implements UltrasonicController 
+{
+  /**
+   * Constants
+   */
+  private static final int MOTOR_SPEED = 200;    
+  private static final int FILTER_OUT = 20;      
+  private static final double GAINER_VALUE = 4; // Value for testing purposes 
+  
+  private final int BAND_CENTER;
+  private final int BAND_WIDTH;
+  private int DISTANCE;
+  private int FILTER_CONTROL;
+  
+  /**
+   * 
+   * @param bandCenter
+   * @param bandwidth
+   */
+  public PController(int bandCenter, int bandwidth) 
+  {
+    this.BAND_CENTER = bandCenter;
+    this.BAND_WIDTH = bandwidth;
+    this.FILTER_CONTROL = 0;
+
+    WallFollowingLab.leftMotor.setSpeed(MOTOR_SPEED); // Initalize motor rolling forward
+    WallFollowingLab.rightMotor.setSpeed(MOTOR_SPEED);
+    WallFollowingLab.leftMotor.forward();
+    WallFollowingLab.rightMotor.forward();
+  }
+  
+  /**
+   * 
+   */
+  @Override
+  public void processUSData(int distance) {
+
+    // rudimentary filter - toss out invalid samples corresponding to null
+    // signal.
+    // (n.b. this was not included in the Bang-bang controller, but easily
+    // could have).
+    //
+    if (distance >= 255 && FILTER_CONTROL < FILTER_OUT) {
+      // bad value, do not set the distance var, however do increment the
+      // filter value
+      FILTER_CONTROL++;
+    } else if (distance >= 255) {
+      // We have repeated large values, so there must actually be nothing
+      // there: leave the distance alone
+      this.DISTANCE = distance;
+    } else {
+      // distance went below 255: reset filter and leave
+      // distance alone.
+      FILTER_CONTROL = 0;
+      this.DISTANCE = distance;
+    }
+
+    // TODO: process a movement based on the us distance passed in (P style)
+  
+    float ControlValue = BAND_CENTER - distance;
+	float SpeedControl = (float) Math.abs(ControlValue * GAINER_VALUE);
+	
+	/**
+	 * Constants
+	 */
+	double e = 1.5;
+	int e2 = (int) (10*e);
+	int e3 = e2 - 5;
+	int f = 3;
+	int g = 50;
+	int h = 2*g;
+	int i = 8;
+	int qq = 140;// trial
+	int j = i/10; 
+	int k = 40;
+	int l = k*10;
+	int m = 300;
+	int n = k/2;
+	int o = 110;
+	
+	if (ControlValue >= -(BAND_WIDTH + e2)) {
+		// Makes EV3 turn right if value of ControlValue is outside the bandwidth on the left.
+		if(distance > 15) {
+			WallFollowingLab.rightMotor.setSpeed((int)Math.max((MOTOR_SPEED + e  * SpeedControl), k));
+			WallFollowingLab.leftMotor.setSpeed((int)Math.min((MOTOR_SPEED + f * SpeedControl), l));
+			WallFollowingLab.rightMotor.forward();
+			WallFollowingLab.leftMotor.forward();
+		}
+		
+		else {
+			WallFollowingLab.rightMotor.setSpeed((int)Math.min((MOTOR_SPEED + g * SpeedControl), m));
+			WallFollowingLab.leftMotor.setSpeed((int)Math.max((MOTOR_SPEED - h * SpeedControl), n));
+			WallFollowingLab.rightMotor.backward();
+			WallFollowingLab.leftMotor.backward();
+		}
+	} 
+	
+	else if (ControlValue <= BAND_WIDTH - e3) {
+		// Makes EV3 turn left if value of ControlValue is outside the bandwidth on the right.
+		WallFollowingLab.rightMotor.setSpeed((int) Math.min((MOTOR_SPEED + qq), m)); 
+		WallFollowingLab.leftMotor.setSpeed((int) Math.max((MOTOR_SPEED - j * SpeedControl), o));
+		WallFollowingLab.rightMotor.forward();
+		WallFollowingLab.leftMotor.forward();
+	} 
+	
+	else {
+		// Makes EV3 go forward if inside allowable bandwidth.
+		WallFollowingLab.rightMotor.setSpeed(MOTOR_SPEED);
+		WallFollowingLab.leftMotor.setSpeed(MOTOR_SPEED);
+		WallFollowingLab.rightMotor.forward();
+		WallFollowingLab.leftMotor.forward();
+	}
+  }
+
+
+  @Override
+  public int readUSDistance() {
+    return this.DISTANCE;
+  }
+
+}
