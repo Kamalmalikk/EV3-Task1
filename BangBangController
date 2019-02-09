@@ -1,0 +1,102 @@
+package ca.mcgill.ecse211.lab1;
+
+import lejos.hardware.motor.*;
+
+/**
+ * Measures the distance from the wall and takes into account the distance you have 
+ * to maintain from the wall
+ * @author Kamal Malik and Julianna Tchebotareva
+ *
+ */
+public class BangBangController implements UltrasonicController 
+{
+
+  private final int bandCenter;
+  private final int bandwidth;
+  private final int motorLow;
+  private final int motorHigh;
+  private int distance;
+  private static final int Control = 10;
+  private int ControlFactor;
+
+  public BangBangController(int bandCenter, int bandwidth, int motorLow, int motorHigh) 
+  {
+    // Default Constructor
+    this.bandCenter = bandCenter;
+    this.bandwidth = bandwidth;
+    this.motorLow = motorLow;
+    this.motorHigh = motorHigh;
+    WallFollowingLab.leftMotor.setSpeed(motorHigh); // Start robot moving forward
+    WallFollowingLab.rightMotor.setSpeed(motorHigh);
+    WallFollowingLab.leftMotor.forward();
+    WallFollowingLab.rightMotor.forward();
+  }
+  
+  /**
+   * Processes a movement based on the us distance passed in (BANG-BANG style)
+   */
+  @Override
+  public void processUSData(int distance) 
+  {
+    this.distance = distance;
+    // TODO: process a movement based on the us distance passed in (BANG-BANG style)
+    
+    // rudimentary filter from the PController Class
+    if (distance >= 255) {
+    		this.distance = distance;    
+    } 
+    
+    else if (distance >= 255 && ControlFactor < Control) {
+        ControlFactor++;
+    } 
+    
+    else {
+        ControlFactor = 0;
+        this.distance = distance;
+    }
+    
+    float ControlValue = bandCenter - distance;
+    int a = 80;
+    int b = 30;
+    int c = 40;
+    int d = 55;
+    
+	if (ControlValue >= -bandwidth) {
+		// Makes EV3 turn right if value of ControlValue is outside the bandwidth on the left.
+		if(distance > 10) {
+			WallFollowingLab.rightMotor.setSpeed(motorLow - a); 
+			WallFollowingLab.leftMotor.setSpeed(motorHigh + b); 
+		    WallFollowingLab.rightMotor.forward();
+			WallFollowingLab.leftMotor.forward();
+		} 
+		
+		else {
+			WallFollowingLab.rightMotor.setSpeed(motorHigh + b);  
+			WallFollowingLab.leftMotor.setSpeed(motorLow - b);   
+			WallFollowingLab.rightMotor.backward();
+			WallFollowingLab.leftMotor.backward();
+		}
+	} 
+	
+	else if (ControlValue <= bandwidth) {
+		// Makes EV3 turn left if value of ControlValue is outside the bandwidth on the right.
+		WallFollowingLab.rightMotor.setSpeed(motorHigh + c);    
+		WallFollowingLab.leftMotor.setSpeed(motorLow + d);      
+	    WallFollowingLab.rightMotor.forward();     
+	    WallFollowingLab.leftMotor.forward();
+	}
+	
+	else {
+		// Makes EV3 go forward if inside allowable bandwidth.
+		WallFollowingLab.rightMotor.setSpeed(motorHigh);   
+		WallFollowingLab.leftMotor.setSpeed(motorHigh);
+	    WallFollowingLab.rightMotor.forward();
+		WallFollowingLab.leftMotor.forward();
+	}
+  }
+
+  @Override
+  public int readUSDistance() {
+    return this.distance;
+  }
+}
